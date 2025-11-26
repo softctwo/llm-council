@@ -18,17 +18,22 @@ def get_conversation_path(conversation_id: str) -> str:
     return os.path.join(DATA_DIR, f"{conversation_id}.json")
 
 
-def create_conversation(conversation_id: str) -> Dict[str, Any]:
+def create_conversation(conversation_id: str = None) -> Dict[str, Any]:
     """
     Create a new conversation.
 
     Args:
-        conversation_id: Unique identifier for the conversation
+        conversation_id: Unique identifier for the conversation (optional)
 
     Returns:
         New conversation dict
     """
+    import uuid
+
     ensure_data_dir()
+
+    if conversation_id is None:
+        conversation_id = str(uuid.uuid4())
 
     conversation = {
         "id": conversation_id,
@@ -169,4 +174,57 @@ def update_conversation_title(conversation_id: str, title: str):
         raise ValueError(f"Conversation {conversation_id} not found")
 
     conversation["title"] = title
+    save_conversation(conversation)
+
+
+def delete_conversation(conversation_id: str):
+    """
+    Delete a conversation and its file.
+
+    Args:
+        conversation_id: Conversation identifier to delete
+    """
+    path = get_conversation_path(conversation_id)
+    if os.path.exists(path):
+        os.remove(path)
+
+
+def add_message(
+    conversation_id: str,
+    role: str,
+    content: str,
+    stage1: List[Dict] = None,
+    stage2: List[Dict] = None,
+    stage3: Dict = None
+):
+    """
+    Add a message to a conversation.
+
+    Args:
+        conversation_id: Conversation identifier
+        role: Message role ('user' or 'assistant')
+        content: Message content
+        stage1: Stage 1 data for assistant messages
+        stage2: Stage 2 data for assistant messages
+        stage3: Stage 3 data for assistant messages
+    """
+    conversation = get_conversation(conversation_id)
+    if conversation is None:
+        raise ValueError(f"Conversation {conversation_id} not found")
+
+    message = {
+        "role": role,
+        "content": content
+    }
+
+    # Add stage data for assistant messages
+    if role == "assistant":
+        if stage1 is not None:
+            message["stage1"] = stage1
+        if stage2 is not None:
+            message["stage2"] = stage2
+        if stage3 is not None:
+            message["stage3"] = stage3
+
+    conversation["messages"].append(message)
     save_conversation(conversation)

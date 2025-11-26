@@ -61,36 +61,36 @@ async def stage2_collect_rankings(
         for label, result in zip(labels, stage1_results)
     ])
 
-    ranking_prompt = f"""You are evaluating different responses to the following question:
+    ranking_prompt = f"""你正在评估对以下问题的不同回答：
 
-Question: {user_query}
+问题：{user_query}
 
-Here are the responses from different models (anonymized):
+以下是不同模型的回答（匿名）：
 
 {responses_text}
 
-Your task:
-1. First, evaluate each response individually. For each response, explain what it does well and what it does poorly.
-2. Then, at the very end of your response, provide a final ranking.
+你的任务：
+1. 首先，逐一评估每个回答。对每个回答，解释它的优点和不足。
+2. 然后，在你的回答最后提供最终排名。
 
-IMPORTANT: Your final ranking MUST be formatted EXACTLY as follows:
-- Start with the line "FINAL RANKING:" (all caps, with colon)
-- Then list the responses from best to worst as a numbered list
-- Each line should be: number, period, space, then ONLY the response label (e.g., "1. Response A")
-- Do not add any other text or explanations in the ranking section
+重要提示：你的最终排名必须严格按照以下格式：
+- 以"最终排名："开始（中文，冒号结尾）
+- 然后按编号列表形式从好到差列出回答
+- 每行格式为：数字、句号、空格，然后仅为回答标签（例如："1. 回答A"）
+- 排名部分不要添加任何其他文字或解释
 
-Example of the correct format for your ENTIRE response:
+正确格式的完整回答示例：
 
-Response A provides good detail on X but misses Y...
-Response B is accurate but lacks depth on Z...
-Response C offers the most comprehensive answer...
+回答A在X方面提供了很好的细节但缺少Y...
+回答B准确但在Z方面缺乏深度...
+回答C提供了最全面的回答...
 
-FINAL RANKING:
-1. Response C
-2. Response A
-3. Response B
+最终排名：
+1. 回答C
+2. 回答A
+3. 回答B
 
-Now provide your evaluation and ranking:"""
+现在请提供你的评估和排名："""
 
     messages = [{"role": "user", "content": ranking_prompt}]
 
@@ -177,6 +177,7 @@ Provide a clear, well-reasoned final answer that represents the council's collec
 def parse_ranking_from_text(ranking_text: str) -> List[str]:
     """
     Parse the FINAL RANKING section from the model's response.
+    Supports both English "FINAL RANKING:" and Chinese "最终排名：" formats.
 
     Args:
         ranking_text: The full text response from the model
@@ -186,25 +187,33 @@ def parse_ranking_from_text(ranking_text: str) -> List[str]:
     """
     import re
 
-    # Look for "FINAL RANKING:" section
-    if "FINAL RANKING:" in ranking_text:
-        # Extract everything after "FINAL RANKING:"
-        parts = ranking_text.split("FINAL RANKING:")
+    # Look for ranking section (try Chinese first, then English as fallback)
+    ranking_marker = None
+    if "最终排名：" in ranking_text:
+        ranking_marker = "最终排名："
+    elif "FINAL RANKING:" in ranking_text:
+        ranking_marker = "FINAL RANKING:"
+
+    if ranking_marker:
+        # Extract everything after the ranking marker
+        parts = ranking_text.split(ranking_marker)
         if len(parts) >= 2:
             ranking_section = parts[1]
-            # Try to extract numbered list format (e.g., "1. Response A")
-            # This pattern looks for: number, period, optional space, "Response X"
-            numbered_matches = re.findall(r'\d+\.\s*Response [A-Z]', ranking_section)
+
+            # Try to extract numbered list format (e.g., "1. Response A" or "1. 回答A")
+            # This pattern looks for: number, period, optional space, "Response X" or "回答X"
+            numbered_matches = re.findall(r'\d+\.\s*(Response [A-Z]|回答[A-Z])', ranking_section)
             if numbered_matches:
-                # Extract just the "Response X" part
-                return [re.search(r'Response [A-Z]', m).group() for m in numbered_matches]
+                # Extract just the "Response X" or "回答X" part
+                return [re.search(r'(Response [A-Z]|回答[A-Z])', m).group() for m in numbered_matches]
 
-            # Fallback: Extract all "Response X" patterns in order
-            matches = re.findall(r'Response [A-Z]', ranking_section)
-            return matches
+            # Fallback: Extract all "Response X" or "回答X" patterns in order
+            matches = re.findall(r'(Response [A-Z]|回答[A-Z])', ranking_section)
+            if matches:
+                return matches
 
-    # Fallback: try to find any "Response X" patterns in order
-    matches = re.findall(r'Response [A-Z]', ranking_text)
+    # Fallback: try to find any "Response X" or "回答X" patterns in order
+    matches = re.findall(r'(Response [A-Z]|回答[A-Z])', ranking_text)
     return matches
 
 

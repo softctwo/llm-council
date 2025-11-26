@@ -65,8 +65,7 @@ async def list_conversations():
 @app.post("/api/conversations", response_model=Conversation)
 async def create_conversation(request: CreateConversationRequest):
     """Create a new conversation."""
-    conversation_id = str(uuid.uuid4())
-    conversation = storage.create_conversation(conversation_id)
+    conversation = storage.create_conversation()
     return conversation
 
 
@@ -192,6 +191,77 @@ async def send_message_stream(conversation_id: str, request: SendMessageRequest)
             "Connection": "keep-alive",
         }
     )
+
+
+class DeleteConversationResponse(BaseModel):
+    """Response for deleted conversation."""
+    success: bool
+    message: str
+
+
+class CopyConversationRequest(BaseModel):
+    """Request to copy a conversation."""
+    title: str = None
+
+
+@app.delete("/api/conversations/{conversation_id}", response_model=DeleteConversationResponse)
+async def delete_conversation(conversation_id: str):
+    """
+    Delete a conversation and all its messages.
+    """
+    # Check if conversation exists
+    conversation = storage.get_conversation(conversation_id)
+    if conversation is None:
+        raise HTTPException(status_code=404, detail="对话不存在")
+
+    try:
+        # Delete the conversation
+        storage.delete_conversation(conversation_id)
+        return DeleteConversationResponse(
+            success=True,
+            message="对话删除成功"
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"删除对话失败: {str(e)}")
+
+
+@app.post("/api/conversations/{conversation_id}/copy", response_model=ConversationMetadata)
+async def copy_conversation(conversation_id: str, request: CopyConversationRequest = None):
+    """
+    Copy an entire conversation to create a new one.
+    """
+    # Check if conversation exists
+    conversation = storage.get_conversation(conversation_id)
+    if conversation is None:
+        raise HTTPException(status_code=404, detail="对话不存在")
+
+    try:
+        # Create new conversation with copy of messages
+        new_title = request.title if request and request.title else f"{conversation['title']} - 副本"
+        new_conversation = storage.create_conversation()
+
+        # Update title
+        storage.update_conversation_title(new_conversation["id"], new_title)
+
+        # Copy all messages
+        for message in conversation["messages"]:
+            storage.add_message(
+                new_conversation["id"],
+                message["role"],
+                message.get("content", ""),
+                message.get("stage1", None),
+                message.get("stage2", None),
+                message.get("stage3", None)
+            )
+
+        return ConversationMetadata(
+            id=new_conversation["id"],
+            created_at=new_conversation["created_at"],
+            title=new_title,
+            message_count=len(conversation["messages"])
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"复制对话失败: {str(e)}")
 
 
 if __name__ == "__main__":

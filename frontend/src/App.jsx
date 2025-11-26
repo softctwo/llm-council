@@ -57,6 +57,45 @@ function App() {
     setCurrentConversationId(id);
   };
 
+  const handleDeleteConversation = async (conversationId) => {
+    try {
+      const response = await fetch(`http://localhost:8001/api/conversations/${conversationId}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        // 重新加载对话列表
+        await loadConversations();
+      } else {
+        console.error('删除对话失败');
+      }
+    } catch (error) {
+      console.error('删除对话失败:', error);
+    }
+  };
+
+  const handleCopyConversation = async (conversationId) => {
+    try {
+      const response = await fetch(`http://localhost:8001/api/conversations/${conversationId}/copy`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const newConversation = await response.json();
+        // 重新加载对话列表
+        await loadConversations();
+        return newConversation;
+      } else {
+        console.error('复制对话失败');
+      }
+    } catch (error) {
+      console.error('复制对话失败:', error);
+    }
+  };
+
   const handleSendMessage = async (content) => {
     if (!currentConversationId) return;
 
@@ -188,6 +227,8 @@ function App() {
         currentConversationId={currentConversationId}
         onSelectConversation={handleSelectConversation}
         onNewConversation={handleNewConversation}
+        onDeleteConversation={handleDeleteConversation}
+        onCopyConversation={handleCopyConversation}
       />
       <ChatInterface
         conversation={currentConversation}
