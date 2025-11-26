@@ -1,0 +1,46 @@
+.logo-container {
+  display: flex;
+  align-items: center;
+  margin-bottom: 16px;
+  padding: 8px 0;
+}
+
+.logo-icon {
+  margin-right: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.logo-text h1 {
+  font-size: 20px;
+  margin: 0;
+  color: #2c5aa0;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.logo-subtitle {
+  font-size: 12px;
+  color: #666;
+  display: block;
+  margin-top: 2px;
+  font-weight: 400;
+  letter-spacing: 0.3px;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .logo-container {
+    justify-content: center;
+    margin-bottom: 12px;
+  }
+
+  .logo-text h1 {
+    font-size: 18px;
+  }
+
+  .logo-subtitle {
+    font-size: 11px;
+  }
+}
